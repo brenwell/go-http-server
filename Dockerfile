@@ -1,10 +1,14 @@
-# Build httpie-go on a big golang image
-FROM golang:1.13 as builder
-RUN mkdir /build 
-RUN git clone https://github.com/nojima/httpie-go.git /build/httpie-go
-WORKDIR /build/httpie-go
-RUN CGO_ENABLED=0 go build -o http ./cmd/ht
+# Use the official Golang image as a base
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN go build -o server .
 
-# Copy the executable to the tiny busybox image
-FROM busybox
-COPY --from=builder /build/httpie-go/http /bin/
+# Use a lightweight Alpine image for the final stage
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/server .
+EXPOSE 8080
+CMD ["./server"]

@@ -23,5 +23,5 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: yourusername/yourimage:latest
-          platforms: linux/amd64,linux/arm64,linux/ppc64le
+          tags: brenwell/go-http-server:latest
+          platforms: linux/amd64,linux/arm64

@@ -1,9 +1,20 @@
-BusyBox with HTTPie-go
+# Go-HTTP-Server
 
-This version of the standard busybox container but adds an HTTPie executable. (busybox: https://busybox.net/about.html). Similar to https://github.com/joncrlsn/busybox but build for multi-architecture
+This is my test server for Kubernetes.
 
-Thank you to :
+It uses `buildx` to build multi architecture. This is how you set it up locally.
 
-    the creators of HTTPie: https://httpie.org/
-    Yusuke Nojima for creating a Go version of HTTPie: https://github.com/nojima/httpie-go
-    Joncrlson for the original version: https://github.com/joncrlsn/busybox
+```sh
+function setup_builder {
+  docker buildx create --name multiarch-builder --driver docker-container --use
+  docker buildx inspect --bootstrap
+}
+```
+
+And this is how you build it.
+
+```sh
+function build {
+  docker buildx build --platform linux/amd64,linux/arm64 -t brenwell/go-http-server:latest -f app/Dockerfile --push app/
+}
+```

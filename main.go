@@ -11,8 +11,8 @@ import (
 
 func main() {
 	http.HandleFunc("/ping", pong)
-	http.HandleFunc("/api/internal/a", handleInternal)
-	http.HandleFunc("/api/internal/b", handleInternal)
+	http.HandleFunc("/block", handleInternal)
+	http.HandleFunc("/api/internal", handleInternal)
 	http.HandleFunc("/api/namespace/a", makeExternalRequest(os.Getenv("NGINX_A")))
 	http.HandleFunc("/api/namespace/b", makeExternalRequest(os.Getenv("NGINX_B")))
 	http.HandleFunc("/api/external/a", makeExternalRequest("https://httpbin.org/json"))
@@ -31,8 +31,8 @@ func pong(w http.ResponseWriter, r *http.Request) {
 func handleInternal(w http.ResponseWriter, r *http.Request) {
 	logRequest(r)
 	data := map[string]interface{}{
-		"source": "self",
 		"message": "Hello, World!",
+		"source": "self",
 		"status":  http.StatusOK,
 	}
 	sendJSONResponse(w, data, http.StatusOK)

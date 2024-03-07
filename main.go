@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+	http.HandleFunc("/ping", pong)
 	http.HandleFunc("/api/internal/a", handleInternal)
 	http.HandleFunc("/api/internal/b", handleInternal)
 	http.HandleFunc("/api/namespace/a", makeExternalRequest(os.Getenv("NGINX_A")))
@@ -19,6 +20,12 @@ func main() {
 
 	fmt.Println("Server is running on port 80...")
 	http.ListenAndServe(":80", nil)
+}
+
+func pong(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("pong"))
 }
 
 func handleInternal(w http.ResponseWriter, r *http.Request) {

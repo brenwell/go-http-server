@@ -10,12 +10,12 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/api/internal/allow", handleInternal)
-	http.HandleFunc("/api/internal/restrict", handleInternal)
-	http.HandleFunc("/api/namespace/allow", makeExternalRequest(os.Getenv("NGINX_A")))
-	http.HandleFunc("/api/namespace/restrict", makeExternalRequest(os.Getenv("NGINX_B")))
-	http.HandleFunc("/api/external/allow", makeExternalRequest("https://swapi.dev/api/people/1"))
-	http.HandleFunc("/api/external/restrict", makeExternalRequest("https://jsonplaceholder.typicode.com/todos/1"))
+	http.HandleFunc("/api/internal/a", handleInternal)
+	http.HandleFunc("/api/internal/b", handleInternal)
+	http.HandleFunc("/api/namespace/a", makeExternalRequest(os.Getenv("NGINX_A")))
+	http.HandleFunc("/api/namespace/b", makeExternalRequest(os.Getenv("NGINX_B")))
+	http.HandleFunc("/api/external/a", makeExternalRequest("https://httpbin.org/json"))
+	http.HandleFunc("/api/external/b", makeExternalRequest("https://jsonplaceholder.typicode.com/todos/1"))
 
 	fmt.Println("Server is running on port 80...")
 	http.ListenAndServe(":80", nil)

@@ -8,6 +8,10 @@ on:
 jobs:
   buildx:
     runs-on: ubuntu-latest
+
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,3 +31,10 @@ jobs:
           push: true
           tags: brenwell/go-http-server:latest
           platforms: linux/amd64,linux/arm64
+
+      - uses: act10ns/slack@v2
+        with:
+          status: ${{ job.status }}
+          steps: ${{ toJson(steps) }}
+          message: "See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}"
+        if: always()

@@ -1,80 +1,73 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/ansrivas/fiberprometheus/v2"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/requestid"
 )
 
+const Addr = ":80"
+
 func main() {
-	http.HandleFunc("/ping", pong)
-	http.HandleFunc("/block", handleInternal)
-	http.HandleFunc("/api/internal", handleInternal)
-	http.HandleFunc("/api/namespace/a", makeExternalRequest(os.Getenv("NGINX_A")))
-	http.HandleFunc("/api/namespace/b", makeExternalRequest(os.Getenv("NGINX_B")))
-	http.HandleFunc("/api/external/a", makeExternalRequest("https://httpbin.org/json"))
-	http.HandleFunc("/api/external/b", makeExternalRequest("https://jsonplaceholder.typicode.com/todos/1"))
+	app := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
+	})
+	app.Use(requestid.New())
+	app.Use(logger.New(logger.Config{
+		Format: "${pid} ${locals:requestid} ${status} - ${method} ${path}\n",
+	}))
+	prometheus := fiberprometheus.New("buzz")
+	prometheus.RegisterAt(app, "/metrics")
+	app.Use(prometheus.Middleware)
 
-	fmt.Println("Server is running on port 80...")
-	http.ListenAndServe(":80", nil)
+	app.Get("/ping", pingHandler)
+	app.Get("/block", jsonHandler)
+	app.Get("/api/self", jsonHandler)
+	app.Get("/api/cluster/a", requestHandler(os.Getenv("NGINX_A")))
+	app.Get("/api/cluster/b", requestHandler(os.Getenv("NGINX_B")))
+	app.Get("/api/external/a", requestHandler("https://httpbin.org/json"))
+	app.Get("/api/external/b", requestHandler("https://jsonplaceholder.typicode.com/todos/1"))
+
+
+	log.Printf("Server started on port%s...", Addr)
+	if err := app.Listen(Addr); err != nil {
+		log.Fatalf("Error starting server: %v", err)
+	}
 }
 
-func pong(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("pong"))
+func pingHandler(c *fiber.Ctx) error {
+	return c.SendString("pong")
 }
 
-func handleInternal(w http.ResponseWriter, r *http.Request) {
-	logRequest(r)
-	data := map[string]interface{}{
+func jsonHandler(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
 		"message": "Hello, World!",
 		"source": "self",
-		"status":  http.StatusOK,
-	}
-	sendJSONResponse(w, data, http.StatusOK)
+		"status":  "ok",
+	})
 }
 
-func makeExternalRequest(url string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logRequest(r)
+func requestHandler(url string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		if url == "" {
-			http.Error(w, "External service URL not provided", http.StatusInternalServerError)
-			return
+			return fiber.NewError(fiber.StatusBadRequest, "Not a valid url")
 		}
 		resp, err := http.Get(url)
 		if err != nil {
-			http.Error(w, "Error making request to external service", http.StatusInternalServerError)
-			return
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
 		defer resp.Body.Close()
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			http.Error(w, "Error reading response from external service", http.StatusInternalServerError)
-			return
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-		sendRawResponse(w, body, resp.StatusCode)
+		c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+		return c.Send(body)
 	}
-}
-
-func logRequest(r *http.Request) {
-	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-}
-
-func sendJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
-	response, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	sendRawResponse(w, response, statusCode)
-}
-
-func sendRawResponse(w http.ResponseWriter, data []byte, statusCode int) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	w.Write(data)
 }
